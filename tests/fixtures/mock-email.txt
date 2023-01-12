@@ -1,0 +1,31 @@
+Return-Path: <sender@example.com>
+Received: from mail-ua1-f50.google.com (mail-ua1-f50.google.com [123.12.333.00])
+ by inbound-smtp.us-east-1.amazonaws.com with SMTP id 123
+ for destination@example.com;
+ Wed, 11 Jan 2023 01:39:44 +0000 (UTC)
+Received-SPF: pass (spfCheck: domain of _spf.google.com designates 123.12.333.00 as permitted sender) client-ip=123.12.333.00; envelope-from=sender@example.com; helo=mail-ua1-f50.google.com;
+Authentication-Results: amazonses.com;
+ spf=pass (spfCheck: domain of _spf.google.com designates 123.12.333.00 as permitted sender) client-ip=123.12.333.00; envelope-from=sender@example.com; helo=mail-ua1-f50.google.com;
+ dkim=pass header.i=@gmail.com;
+ dmarc=pass header.from=gmail.com;
+Received: by mail-ua1-f50.google.com with SMTP id 123.10
+        for <destination@example.com>; Tue, 10 Jan 2023 17:39:44 -0800 (PST)
+MIME-Version: 1.0
+From: Sawyer Hollenshead <sender@example.com>
+Date: Tue, 10 Jan 2023 17:39:18 -0800
+Message-ID: <CAHY-FtKzbP7L-YVC5_PuwheLVryaoYArSqNy7tLayFsu==-YOg@mail.gmail.com>
+Subject: Hello world
+To: destination@example.com
+Content-Type: multipart/alternative; boundary="000000000000288d2e05f1f3130a"
+
+--000000000000288d2e05f1f3130a
+Content-Type: text/plain; charset="UTF-8"
+
+This is a *test!*
+
+--000000000000288d2e05f1f3130a
+Content-Type: text/html; charset="UTF-8"
+
+<div dir="ltr">This is a <b>test!</b></div>
+
+--000000000000288d2e05f1f3130a--
