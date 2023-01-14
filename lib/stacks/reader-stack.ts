@@ -6,7 +6,6 @@ import {
 } from "aws-cdk-lib";
 import { LambdaS3Reader } from "../constructs/LambdaS3Reader";
 import { getEnv } from "../utils/getEnv";
-import { getAwsId } from "../utils/getAwsId";
 
 const env = getEnv();
 
@@ -21,7 +20,7 @@ export class ReaderStack extends cdk.Stack {
     /**
      * S3 bucket for storing emails
      */
-    const bucket = new s3.Bucket(this, getAwsId("Inbox"), {
+    const bucket = new s3.Bucket(this, "Inbox", {
       lifecycleRules: [
         {
           prefix: env.S3_EMAIL_OBJECT_PREFIX,
@@ -33,21 +32,22 @@ export class ReaderStack extends cdk.Stack {
           ],
         },
       ],
+      autoDeleteObjects: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const ruleSet = ses.ReceiptRuleSet.fromReceiptRuleSetName(
       this,
-      "RuleSet",
+      "Rules",
       env.SES_RULE_SET_NAME
     );
 
-    new ses.DropSpamReceiptRule(this, getAwsId("DropSpam"), {
+    new ses.DropSpamReceiptRule(this, "Drop-Spam", {
       ruleSet,
       recipients,
     });
 
-    ruleSet.addRule(getAwsId("SaveToS3"), {
+    ruleSet.addRule("Save-To-S3", {
       recipients,
       actions: [
         new sesActions.S3({

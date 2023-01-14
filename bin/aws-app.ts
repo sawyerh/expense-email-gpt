@@ -3,7 +3,6 @@ import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
 import { ReaderStack } from "../lib/stacks/reader-stack";
 import { SesIdentityStack } from "../lib/stacks/ses-identity-stack";
-import { getAwsId } from "../lib/utils/getAwsId";
 
 // https://docs.aws.amazon.com/cdk/latest/guide/environments.html
 const env = {
@@ -12,9 +11,10 @@ const env = {
 };
 
 const app = new cdk.App();
+const prefix = process.env.STACK_PREFIX ? `${process.env.STACK_PREFIX}-` : "";
 
-new ReaderStack(app, getAwsId("Reader"), { env });
+new ReaderStack(app, `${prefix}Reader`, { env });
 
 if (process.env.SES_SKIP_DOMAIN_IDENTITY_CREATION !== "true") {
-  new SesIdentityStack(app, getAwsId("Identity"), { env });
+  new SesIdentityStack(app, `${prefix}Identity`, { env });
 }

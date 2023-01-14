@@ -7,7 +7,6 @@ import {
 } from "aws-cdk-lib";
 import path = require("path");
 import { Construct } from "constructs";
-import { getAwsId } from "../utils/getAwsId";
 import { getEnv } from "../utils/getEnv";
 
 const env = getEnv();
@@ -24,14 +23,15 @@ export class LambdaS3Reader extends Construct {
    * Lambda for reading the emails from S3 when created
    */
   constructor(scope: Construct, { bucket, objectKeyPrefix }: Props) {
-    super(scope, getAwsId());
+    super(scope, "Default");
 
-    this.lambda = new nodeLambda.NodejsFunction(this, getAwsId("ReaderFn"), {
+    this.lambda = new nodeLambda.NodejsFunction(this, "Reader-Fn", {
       description: "Reads the email object added to S3",
       entry: path.join(__dirname, "../reader.ts"),
       environment: {
         GOOGLE_SERVICE_CLIENT_EMAIL: env.GOOGLE_SERVICE_CLIENT_EMAIL,
         GOOGLE_SERVICE_PRIVATE_KEY: env.GOOGLE_SERVICE_PRIVATE_KEY,
+        OPEN_AI_KEY: env.OPEN_AI_KEY,
         SHEET_ID: env.SHEET_ID,
       },
       runtime: lambda.Runtime.NODEJS_18_X,

@@ -1,12 +1,39 @@
 import { S3 } from "@aws-sdk/client-s3";
+import { OpenAIApi } from "openai";
 import { readFileSync } from "fs";
 import { handler } from "../lib/reader";
-import { GoogleSpreadsheet } from "google-spreadsheet";
 import MOCK_CONTEXT from "./fixtures/mock-lambda-context";
 import * as MOCK_EVENT from "./fixtures/mock-s3-put-object-event.json";
 import path = require("path");
 
+// Remove the below and any calls to jest.mock / jest.spyOn to run the
+// test against the real services
+/*
+import { getEnv } from "../lib/utils/getEnv";
+getEnv();
+*/
+
 jest.mock("@aws-sdk/client-s3");
+jest.spyOn(S3.prototype, "getObject").mockImplementation(() => {
+  return Promise.resolve({
+    Body: readFileSync(
+      path.join(__dirname, "fixtures", "mock-email.txt"),
+      "utf8"
+    ),
+  });
+});
+
+jest.mock("openai");
+jest.spyOn(OpenAIApi.prototype, "createCompletion").mockResolvedValue({
+  // @ts-expect-error - just mocking what we need
+  data: {
+    choices: [
+      {
+        text: "Amount: $1.20, From: Foo Bar",
+      },
+    ],
+  },
+});
 
 const mockAddRow = jest.fn();
 jest.mock("google-spreadsheet", () => {
@@ -27,28 +54,37 @@ jest.mock("google-spreadsheet", () => {
 
 const MOCK_CALLBACK = () => {};
 
-const MOCK_EMAIL = readFileSync(
-  path.join(__dirname, "fixtures", "mock-email.txt"),
-  "utf8"
-);
+it("parses the email", async () => {
+  expect.hasAssertions();
+  const event = Object.assign({}, MOCK_EVENT);
 
-describe("Lambda function", () => {
-  it("parses the email", async () => {
-    expect.hasAssertions();
-    const event = Object.assign({}, MOCK_EVENT);
+  await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
 
-    jest.spyOn(S3.prototype, "getObject").mockImplementationOnce(() => {
-      return Promise.resolve({
-        Body: MOCK_EMAIL,
-      });
-    });
+  expect(mockAddRow).toHaveBeenCalledWith({
+    Amount: "1.20",
+    Date: "2023-01-10 -08:00",
+    From: "Foo Bar",
+  });
+});
 
-    await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
+it("adds a row with error message if the completion doesn't work", async () => {
+  expect.hasAssertions();
+  const event = Object.assign({}, MOCK_EVENT);
+  (OpenAIApi.prototype.createCompletion as jest.Mock).mockResolvedValueOnce({
+    data: {
+      choices: [
+        {
+          text: "An amount of $1.20 was spent at Foo Bar",
+        },
+      ],
+    },
+  });
 
-    expect(mockAddRow).toHaveBeenCalledWith({
-      Amount: "1.20",
-      Date: "2023-01-10T17:39:18-08:00",
-      From: "TODO",
-    });
+  await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
+
+  expect(mockAddRow).toHaveBeenCalledWith({
+    Amount: "Error parsing Hello world",
+    Date: "2023-01-10 -08:00",
+    From: "No 'Amount' found in completion",
   });
 });

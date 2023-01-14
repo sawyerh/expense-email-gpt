@@ -5,7 +5,6 @@
  */
 import * as cdk from "aws-cdk-lib";
 import { aws_ses as ses } from "aws-cdk-lib";
-import { getAwsId } from "../utils/getAwsId";
 import { getEnv } from "../utils/getEnv";
 
 const env = getEnv();
@@ -19,7 +18,7 @@ export class SesIdentityStack extends cdk.Stack {
     super(scope, id, props);
     const domain = env.RECEIVING_EMAIL.split("@")[1];
 
-    const domainIdentity = new ses.EmailIdentity(this, getAwsId("Domain"), {
+    const domainIdentity = new ses.EmailIdentity(this, "Domain", {
       identity: ses.Identity.domain(domain),
     });
 
