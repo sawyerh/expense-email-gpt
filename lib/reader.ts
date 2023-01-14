@@ -102,7 +102,7 @@ ${body}`;
     max_tokens: 256,
   });
 
-  const completion = response.data.choices[0].text;
+  const completion = response.data.choices[0].text?.trim();
   if (!completion) throw new Error("No completion from OpenAI");
 
   console.log("Completion:", completion);
