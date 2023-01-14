@@ -33,6 +33,7 @@ export class LambdaS3Reader extends Construct {
         GOOGLE_SERVICE_PRIVATE_KEY: env.GOOGLE_SERVICE_PRIVATE_KEY,
         OPEN_AI_KEY: env.OPEN_AI_KEY,
         SHEET_ID: env.SHEET_ID,
+        SENDING_EMAIL: env.SENDING_EMAIL,
       },
       runtime: lambda.Runtime.NODEJS_18_X,
       memorySize: 512,

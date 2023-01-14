@@ -14,22 +14,30 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 export const handler: S3Handler = async (event: S3Event) => {
-  const { date, text, subject } = await getEmailFromS3(event);
+  const { from, date, text, subject } = await getEmailFromS3(event);
+  const fromEmail = from?.value[0].address;
+
   if (!text) throw new Error("No email text found");
 
+  if (fromEmail !== process.env.SENDING_EMAIL) {
+    console.warn("Ignoring email from:", fromEmail);
+    return;
+  }
+
   const rowData = {
-    "Date added": dayjs(date).tz("America/Los_Angeles").format("YYYY-MM-DD Z"),
     Amount: "",
-    From: "",
+    "Sent to": "",
+    "Email date": dayjs(date).tz("America/Los_Angeles").format("YYYY-MM-DD Z"),
   };
 
   try {
-    const { amount, from } = await getExpenseDetails(text);
+    const { amount, to } = await getExpenseDetails(text);
     rowData.Amount = amount;
-    rowData.From = from;
+    rowData["Sent to"] = to;
   } catch (error) {
     rowData.Amount = `Error parsing ${subject}`;
-    rowData.From = error instanceof Error ? error.message : "Unknown error";
+    rowData["Sent to"] =
+      error instanceof Error ? error.message : "Unknown error";
   }
 
   const doc = new GoogleSpreadsheet(process.env.SHEET_ID);
@@ -72,8 +80,8 @@ async function getExpenseDetails(body: string) {
   );
 
   const prompt = `The following is a forwarded expense email.
-How much is the expense for in dollars, and who charged the expense? Respond in the format: "Amount: <amount>, From: <from>"
-For example: "Amount: 1.20, From: Acme Corp"
+How much is the expense for in dollars, and who was the money sent to? Respond in the format: "Amount: <amount>, To: <sent to>"
+For example: "Amount: 1.20, To: Acme Corp"
 ${body}`;
 
   const response = await openai.createCompletion({
@@ -88,11 +96,11 @@ ${body}`;
 
   console.log("Completion:", completion);
 
-  const amount = completion.match(/Amount: (.+?), From/)?.[1].replace("$", "");
-  const from = completion.match(/From: (.+)/)?.[1];
+  const amount = completion.match(/Amount: (.+?), To/)?.[1].replace("$", "");
+  const to = completion.match(/To: (.+)/)?.[1];
 
   if (!amount) throw new Error("No 'Amount' found in completion");
-  if (!from) throw new Error("No 'From' found in completion");
+  if (!to) throw new Error("No 'To' found in completion");
 
-  return { amount, from };
+  return { amount, to };
 }

@@ -29,7 +29,7 @@ jest.spyOn(OpenAIApi.prototype, "createCompletion").mockResolvedValue({
   data: {
     choices: [
       {
-        text: "Amount: $1.20, From: Foo Bar",
+        text: "Amount: $1.20, To: Foo Bar",
       },
     ],
   },
@@ -54,6 +54,8 @@ jest.mock("google-spreadsheet", () => {
 
 const MOCK_CALLBACK = () => {};
 
+process.env.SENDING_EMAIL = "sender@example.com";
+
 it("parses the email", async () => {
   expect.hasAssertions();
   const event = Object.assign({}, MOCK_EVENT);
@@ -62,8 +64,8 @@ it("parses the email", async () => {
 
   expect(mockAddRow).toHaveBeenCalledWith({
     Amount: "1.20",
-    "Date added": "2023-01-10 -08:00",
-    From: "Foo Bar",
+    "Email date": "2023-01-10 -08:00",
+    "Sent to": "Foo Bar",
   });
 });
 
@@ -84,7 +86,7 @@ it("adds a row with error message if the completion doesn't work", async () => {
 
   expect(mockAddRow).toHaveBeenCalledWith({
     Amount: "Error parsing Hello world",
-    "Date added": "2023-01-10 -08:00",
-    From: "No 'Amount' found in completion",
+    "Email date": "2023-01-10 -08:00",
+    "Sent to": "No 'Amount' found in completion",
   });
 });
