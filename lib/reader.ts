@@ -111,8 +111,9 @@ ${body}`;
   const to = completion.match(/To: (.+?),/)?.[1];
   const details = completion.match(/Details: (.+)/)?.[1].replace("N/A", "");
 
-  if (!amount) throw new Error("No 'Amount' found in completion");
-  if (!to) throw new Error("No 'To' found in completion");
+  if (!amount)
+    throw new Error(`No 'Amount' found in completion: ${completion}`);
+  if (!to) throw new Error(`No 'To' found in completion: ${completion}`);
 
   return { amount, completion, details, to };
 }
