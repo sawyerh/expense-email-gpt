@@ -2,6 +2,8 @@
 
 This repo contains an email-based workflow for turning expense emails into rows in a spreadsheet. This repo is based on my [`aws-email-workflow-starter`](https://github.com/sawyerh/aws-email-workflow-starter) template.
 
+![Demo](./docs/demo.gif)
+
 ## 🧐 How it works
 
 ```mermaid
