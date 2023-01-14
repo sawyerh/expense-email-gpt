@@ -18,7 +18,7 @@ export const handler: S3Handler = async (event: S3Event) => {
   if (!text) throw new Error("No email text found");
 
   const rowData = {
-    Date: dayjs(date).tz("America/Los_Angeles").format("YYYY-MM-DD Z"),
+    "Date added": dayjs(date).tz("America/Los_Angeles").format("YYYY-MM-DD Z"),
     Amount: "",
     From: "",
   };

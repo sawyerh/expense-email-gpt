@@ -62,7 +62,7 @@ it("parses the email", async () => {
 
   expect(mockAddRow).toHaveBeenCalledWith({
     Amount: "1.20",
-    Date: "2023-01-10 -08:00",
+    "Date added": "2023-01-10 -08:00",
     From: "Foo Bar",
   });
 });
@@ -84,7 +84,7 @@ it("adds a row with error message if the completion doesn't work", async () => {
 
   expect(mockAddRow).toHaveBeenCalledWith({
     Amount: "Error parsing Hello world",
-    Date: "2023-01-10 -08:00",
+    "Date added": "2023-01-10 -08:00",
     From: "No 'Amount' found in completion",
   });
 });
