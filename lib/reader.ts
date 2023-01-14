@@ -58,7 +58,10 @@ async function getEmailFromS3(event: S3Event) {
       ? Body
       : Buffer.from(await Body.transformToByteArray());
 
-  return await simpleParser(parseableBody);
+  return await simpleParser(parseableBody, {
+    skipImageLinks: true,
+    skipHtmlToText: true,
+  });
 }
 
 async function getExpenseDetails(body: string) {
@@ -77,7 +80,7 @@ ${body}`;
     prompt,
     model: "text-davinci-003",
     temperature: 0.1,
-    max_tokens: 3000,
+    max_tokens: 256,
   });
 
   const completion = response.data.choices[0].text;
