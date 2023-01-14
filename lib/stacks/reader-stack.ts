@@ -10,7 +10,7 @@ import { getAwsId } from "../utils/getAwsId";
 
 const env = getEnv();
 
-export class EmailReaderStack extends cdk.Stack {
+export class ReaderStack extends cdk.Stack {
   /**
    * Create AWS resources required for storing and taking action on emails received
    */

@@ -3,21 +3,33 @@
  */
 import type { Callback, Context, S3Event, S3Handler } from "aws-lambda";
 import { S3 } from "@aws-sdk/client-s3";
+import dayjs from "dayjs";
 import { simpleParser } from "mailparser";
+import { GoogleSpreadsheet } from "google-spreadsheet";
 
 export const handler: S3Handler = async (
   event: S3Event,
   context: Context,
   callback: Callback
 ) => {
-  const email = await getEmailFromS3(event);
+  const { date, text, subject } = await getEmailFromS3(event);
 
-  // Put your code below, this is just here to demonstrate the email object.
-  // There's a corresponding test in `tests/reader.test.ts` too.
-  const { subject, text, html, attachments } = email;
+  // TODO: Parse email using GPTf
 
-  console.log("Read email:", subject);
-  callback(undefined, { subject, text, html });
+  const doc = new GoogleSpreadsheet(process.env.SHEET_ID);
+  await doc.useServiceAccountAuth({
+    client_email: process.env.GOOGLE_SERVICE_CLIENT_EMAIL ?? "",
+    private_key: process.env.GOOGLE_SERVICE_PRIVATE_KEY ?? "",
+  });
+
+  await doc.loadInfo();
+
+  const sheet = doc.sheetsByTitle["Expenses"];
+  await sheet.addRow({
+    Date: dayjs(date).format("YYYY-MM-DDTHH:mm:ssZ"),
+    Amount: "1.20",
+    From: "TODO",
+  });
 };
 
 async function getEmailFromS3(event: S3Event) {

@@ -10,7 +10,7 @@ import { getEnv } from "../utils/getEnv";
 
 const env = getEnv();
 
-export class EmailAddressStack extends cdk.Stack {
+export class SesIdentityStack extends cdk.Stack {
   /**
    * Create AWS SES domain identity so we can receive emails to the desired email address.
    * This domain will require verification using the DNS records output after deploying this stack.
