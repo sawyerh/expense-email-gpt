@@ -91,6 +91,7 @@ it("adds a row with error message if the completion doesn't work", async () => {
     "AI completion": "",
     Details: "",
     "Email date": "2023-01-10 -08:00",
-    "Sent to": "No 'Amount' found in completion",
+    "Sent to":
+      "No 'Amount' found in completion: An amount of $1.20 was spent at Foo Bar",
   });
 });
