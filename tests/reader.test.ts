@@ -29,7 +29,7 @@ jest.spyOn(OpenAIApi.prototype, "createCompletion").mockResolvedValue({
   data: {
     choices: [
       {
-        text: "Amount: $1.20;;To: Foo Bar;;Details: 2022-01-31",
+        text: "Amount: $1.20, To: Foo Bar, Details: 2022-01-31",
       },
     ],
   },
@@ -64,6 +64,7 @@ it("parses the email", async () => {
 
   expect(mockAddRow).toHaveBeenCalledWith({
     Amount: "1.20",
+    "AI completion": "Amount: $1.20, To: Foo Bar, Details: 2022-01-31",
     Details: "2022-01-31",
     "Email date": "2023-01-10 -08:00",
     "Sent to": "Foo Bar",
@@ -87,6 +88,7 @@ it("adds a row with error message if the completion doesn't work", async () => {
 
   expect(mockAddRow).toHaveBeenCalledWith({
     Amount: "Error parsing Hello world",
+    "AI completion": "",
     Details: "",
     "Email date": "2023-01-10 -08:00",
     "Sent to": "No 'Amount' found in completion",

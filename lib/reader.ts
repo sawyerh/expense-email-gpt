@@ -29,13 +29,15 @@ export const handler: S3Handler = async (event: S3Event) => {
     "Sent to": "",
     "Email date": dayjs(date).tz("America/Los_Angeles").format("YYYY-MM-DD Z"),
     Details: "",
+    "AI completion": "",
   };
 
   try {
-    const { amount, details, to } = await getExpenseDetails(text);
+    const { amount, completion, details, to } = await getExpenseDetails(text);
     rowData.Amount = amount;
     rowData["Sent to"] = to;
     rowData["Details"] = details ?? "";
+    rowData["AI completion"] = completion;
   } catch (error) {
     rowData.Amount = `Error parsing ${subject}`;
     rowData["Sent to"] =
@@ -88,9 +90,9 @@ If the expense is for a domain name, also include the domain name in the details
 If there are no details, use "N/A" in the details field.
 Respond in the format: "Amount: <amount>, To: <sent to>, Details: <details>"
 Below are examples of desired responses:
-Example 1: "Amount: 1.20;;To: Acme Corp;;Details: 2021-12-25"
-Example 2: "Amount: 34.98;;To: Netlify;;Details: 2023-01-31 foo.com"
-Example 3: "Amount: 34.98;;To: Netlify;;Details: N/A"
+Example 1: "Amount: 1.20, To: Acme Corp, Details: 2021-12-25"
+Example 2: "Amount: 34.98, To: Netlify, Details: 2023-01-31 foo.com"
+Example 3: "Amount: 34.98, To: Netlify, Details: N/A"
 ${body}`;
 
   const response = await openai.createCompletion({
@@ -105,12 +107,12 @@ ${body}`;
 
   console.log("Completion:", completion);
 
-  const amount = completion.match(/Amount: (.+?);;/)?.[1].replace("$", "");
-  const to = completion.match(/To: (.+);;/)?.[1];
+  const amount = completion.match(/Amount: (.+?), To/)?.[1].replace("$", "");
+  const to = completion.match(/To: (.+?),/)?.[1];
   const details = completion.match(/Details: (.+)/)?.[1].replace("N/A", "");
 
   if (!amount) throw new Error("No 'Amount' found in completion");
   if (!to) throw new Error("No 'To' found in completion");
 
-  return { amount, details, to };
+  return { amount, completion, details, to };
 }
