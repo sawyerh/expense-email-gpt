@@ -90,16 +90,13 @@ describe("reader", () => {
       data: {
         choices: [
           {
-            text: "An amount of $1.20 was spent at Foo Bar",
+            text: "",
           },
         ],
       },
     });
 
-    try {
-      await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
-    } catch (err) {
-      expect(sesSendSpy).toHaveBeenCalledTimes(1);
-    }
+    await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
+    expect(sesSendSpy).toHaveBeenCalledTimes(1);
   });
 });
