@@ -1,4 +1,5 @@
 import { S3 } from "@aws-sdk/client-s3";
+import { SESClient } from "@aws-sdk/client-ses";
 import { OpenAIApi } from "openai";
 import { readFileSync } from "fs";
 import { handler } from "../lib/reader";
@@ -12,6 +13,9 @@ import path = require("path");
 import { getEnv } from "../lib/utils/getEnv";
 getEnv();
 */
+
+jest.mock("@aws-sdk/client-ses");
+const sesSendSpy = jest.spyOn(SESClient.prototype, "send");
 
 jest.mock("@aws-sdk/client-s3");
 jest.spyOn(S3.prototype, "getObject").mockImplementation(() => {
@@ -56,42 +60,46 @@ const MOCK_CALLBACK = () => {};
 
 process.env.SENDING_EMAIL = "sender@example.com";
 
-it("parses the email", async () => {
-  expect.hasAssertions();
-  const event = Object.assign({}, MOCK_EVENT);
-
-  await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
-
-  expect(mockAddRow).toHaveBeenCalledWith({
-    Amount: "1.20",
-    "AI completion": "Amount: $1.20, To: Foo Bar, Details: 2022-01-31",
-    Details: "2022-01-31",
-    "Email date": "2023-01-10 -08:00",
-    "Sent to": "Foo Bar",
-  });
-});
-
-it("adds a row with error message if the completion doesn't work", async () => {
-  expect.hasAssertions();
-  const event = Object.assign({}, MOCK_EVENT);
-  (OpenAIApi.prototype.createCompletion as jest.Mock).mockResolvedValueOnce({
-    data: {
-      choices: [
-        {
-          text: "An amount of $1.20 was spent at Foo Bar",
-        },
-      ],
-    },
+describe("reader", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
+  it("parses the email", async () => {
+    expect.hasAssertions();
+    const event = Object.assign({}, MOCK_EVENT);
 
-  expect(mockAddRow).toHaveBeenCalledWith({
-    Amount: "Error parsing Hello world",
-    "AI completion": "",
-    Details: "",
-    "Email date": "2023-01-10 -08:00",
-    "Sent to":
-      "No 'Amount' found in completion: An amount of $1.20 was spent at Foo Bar",
+    await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
+
+    expect(mockAddRow).toHaveBeenCalledWith({
+      Amount: "1.20",
+      "AI completion": "Amount: $1.20, To: Foo Bar, Details: 2022-01-31",
+      Details: "2022-01-31",
+      "Email date": "2023-01-10 -08:00",
+      "Sent to": "Foo Bar",
+    });
+    expect(sesSendSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends reply with error message if the completion doesn't work", async () => {
+    expect.hasAssertions();
+    const event = Object.assign({}, MOCK_EVENT);
+
+    jest.spyOn(console, "error").mockImplementationOnce(() => {});
+    (OpenAIApi.prototype.createCompletion as jest.Mock).mockResolvedValueOnce({
+      data: {
+        choices: [
+          {
+            text: "An amount of $1.20 was spent at Foo Bar",
+          },
+        ],
+      },
+    });
+
+    try {
+      await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
+    } catch (err) {
+      expect(sesSendSpy).toHaveBeenCalledTimes(1);
+    }
   });
 });

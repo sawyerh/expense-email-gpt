@@ -12,9 +12,10 @@ const env = {
 
 const app = new cdk.App();
 const prefix = process.env.STACK_PREFIX ? `${process.env.STACK_PREFIX}-` : "";
+const domain = process.env.RECEIVING_EMAIL?.split("@")[1] || "";
 
-new ReaderStack(app, `${prefix}Reader`, { env });
+new ReaderStack(app, `${prefix}Reader`, { domain, env });
 
 if (process.env.SES_SKIP_DOMAIN_IDENTITY_CREATION !== "true") {
-  new SesIdentityStack(app, `${prefix}Identity`, { env });
+  new SesIdentityStack(app, `${prefix}Identity`, { domain, env });
 }

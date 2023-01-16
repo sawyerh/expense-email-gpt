@@ -27,13 +27,19 @@ export const handler: S3Handler = async (event: S3Event) => {
     return;
   }
 
+  const replyParams = {
+    region,
+    to: fromEmail,
+    subject: subject ?? "Re: Expense parsing",
+  };
+
   try {
     const expenseDetails = await getExpenseDetails(text);
     const row = await addRowToSheet(expenseDetails, date);
-    await sendReply(region, { to: fromEmail, subject: subject ?? "" }, row);
+    await sendReply(replyParams, row);
   } catch (error) {
     console.error(error);
-    // TODO: Send reply with error details
+    if (error instanceof Error) await sendReply(replyParams, error);
     throw error;
   }
 };
@@ -130,13 +136,19 @@ ${body}`;
 }
 
 async function sendReply(
-  region: string,
-  { to, subject }: { to: string; subject: string },
-  rowData: { [key: string]: string }
+  { region, to, subject }: { region: string; to: string; subject: string },
+  data: Awaited<ReturnType<typeof addRowToSheet>> | Error
 ) {
+  let body = "";
   let rowAsString = "";
-  for (const [key, value] of Object.entries(rowData)) {
-    rowAsString += `${key}: ${value}\n`;
+
+  if (data instanceof Error) {
+    body = `There was an error parsing this expense: ${data.message}`;
+  } else {
+    for (const [key, value] of Object.entries(data)) {
+      rowAsString += `<strong>${key}</strong>: ${value}<br />`;
+    }
+    body = `Recorded the following:\n${rowAsString}`;
   }
 
   const ses = new SESClient({ region });
@@ -147,8 +159,8 @@ async function sendReply(
     Source: process.env.RECEIVING_EMAIL,
     Message: {
       Body: {
-        Text: {
-          Data: `Recorded the following:\n${rowAsString}`,
+        Html: {
+          Data: body,
         },
       },
       Subject: {
@@ -159,7 +171,7 @@ async function sendReply(
 
   try {
     const data = await ses.send(new SendEmailCommand(params));
-    console.log("Email reply sent successfully. Message ID:", data.MessageId);
+    console.log("Email reply sent");
   } catch (error) {
     // Sending a reply is not critical, so just log the error
     console.error(error);

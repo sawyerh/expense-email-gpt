@@ -9,11 +9,15 @@ import { getEnv } from "../utils/getEnv";
 
 const env = getEnv();
 
+interface Props extends cdk.StackProps {
+  domain: string;
+}
+
 export class ReaderStack extends cdk.Stack {
   /**
    * Create AWS resources required for storing and taking action on emails received
    */
-  constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+  constructor(scope: cdk.App, id: string, props: Props) {
     super(scope, id, props);
     const recipients = [env.RECEIVING_EMAIL];
 
@@ -64,12 +68,13 @@ export class ReaderStack extends cdk.Stack {
       bucket,
       objectKeyPrefix: env.S3_EMAIL_OBJECT_PREFIX,
     });
+    const domainIdentityArn = `arn:aws:ses:${this.region}:${this.account}:identity/${props.domain}`;
 
     bucket.grantRead(lambdaS3Reader.lambda);
     lambdaS3Reader.lambda.addToRolePolicy(
       new cdk.aws_iam.PolicyStatement({
         actions: ["ses:SendEmail"],
-        resources: ["*"],
+        resources: [domainIdentityArn],
       })
     );
   }

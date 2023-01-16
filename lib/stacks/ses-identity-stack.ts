@@ -9,17 +9,20 @@ import { getEnv } from "../utils/getEnv";
 
 const env = getEnv();
 
+interface Props extends cdk.StackProps {
+  domain: string;
+}
+
 export class SesIdentityStack extends cdk.Stack {
   /**
    * Create AWS SES domain identity so we can receive emails to the desired email address.
    * This domain will require verification using the DNS records output after deploying this stack.
    */
-  constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+  constructor(scope: cdk.App, id: string, props: Props) {
     super(scope, id, props);
-    const domain = env.RECEIVING_EMAIL.split("@")[1];
 
     const domainIdentity = new ses.EmailIdentity(this, "Domain", {
-      identity: ses.Identity.domain(domain),
+      identity: ses.Identity.domain(props.domain),
     });
 
     /**
@@ -35,7 +38,7 @@ Name: ${domainIdentity.dkimDnsTokenName3}\nValue: ${domainIdentity.dkimDnsTokenV
     new cdk.CfnOutput(this, "MX", {
       value: `\n
 MX record:\n
-Name: ${domain}\nValue: inbound-smtp.${env.CDK_DEPLOY_REGION}.amazonaws.com
+Name: ${props.domain}\nValue: inbound-smtp.${env.CDK_DEPLOY_REGION}.amazonaws.com
 Priority: 10\n`,
     });
   }
