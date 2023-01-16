@@ -38,9 +38,9 @@ export const handler: S3Handler = async (event: S3Event) => {
     const row = await addRowToSheet(expenseDetails, date);
     await sendReply(replyParams, row);
   } catch (error) {
+    // Don't throw the error, otherwise the function will retry
     console.error(error);
     if (error instanceof Error) await sendReply(replyParams, error);
-    throw error;
   }
 };
 
@@ -110,6 +110,7 @@ Below are examples of desired responses:
 Example 1: "Amount: 1.20, To: Acme Corp, Details: 2021-12-25"
 Example 2: "Amount: 34.98, To: Netlify, Details: 2023-01-31 foo.com"
 Example 3: "Amount: 34.98, To: Netlify, Details: N/A"
+Example 4: "Can't find the amount."
 ${body}`;
 
   const response = await openai.createCompletion({
