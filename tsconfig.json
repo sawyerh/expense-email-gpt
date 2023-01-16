@@ -6,7 +6,7 @@
     "forceConsistentCasingInFileNames": true,
     "inlineSourceMap": true,
     "inlineSources": true,
-    "lib": ["es2020"],
+    "lib": ["ESNext", "DOM"],
     "module": "commonjs",
     "noFallthroughCasesInSwitch": false,
     "noImplicitReturns": true,
