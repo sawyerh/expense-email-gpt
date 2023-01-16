@@ -170,7 +170,7 @@ async function sendReply(
   };
 
   try {
-    const data = await ses.send(new SendEmailCommand(params));
+    await ses.send(new SendEmailCommand(params));
     console.log("Email reply sent");
   } catch (error) {
     // Sending a reply is not critical, so just log the error
