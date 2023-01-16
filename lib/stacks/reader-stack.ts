@@ -66,5 +66,11 @@ export class ReaderStack extends cdk.Stack {
     });
 
     bucket.grantRead(lambdaS3Reader.lambda);
+    lambdaS3Reader.lambda.addToRolePolicy(
+      new cdk.aws_iam.PolicyStatement({
+        actions: ["ses:SendEmail"],
+        resources: ["*"],
+      })
+    );
   }
 }

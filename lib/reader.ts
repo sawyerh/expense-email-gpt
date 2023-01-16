@@ -1,8 +1,10 @@
 /**
- * @file Lambda handler that receives an S3 object creation event
+ * @file Lambda handler that reads the email from S3, parses it,
+ *       and adds its details to a Google Sheet
  */
 import type { S3Event, S3Handler } from "aws-lambda";
 import { Configuration, OpenAIApi } from "openai";
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { S3 } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
@@ -14,35 +16,42 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 export const handler: S3Handler = async (event: S3Event) => {
-  const { from, date, text, subject } = await getEmailFromS3(event);
+  const region = event.Records[0].awsRegion;
+  const { from, date, text, subject } = await getEmailFromS3(event, region);
   const fromEmail = from?.value[0].address;
 
   if (!text) throw new Error("No email text found");
-
-  if (fromEmail !== process.env.SENDING_EMAIL) {
+  if (!date) throw new Error("No email date found");
+  if (!fromEmail || fromEmail !== process.env.SENDING_EMAIL) {
     console.warn("Ignoring email from:", fromEmail);
     return;
   }
 
-  const rowData = {
-    Amount: "",
-    "Sent to": "",
-    "Email date": dayjs(date).tz("America/Los_Angeles").format("YYYY-MM-DD Z"),
-    Details: "",
-    "AI completion": "",
-  };
-
   try {
-    const { amount, completion, details, to } = await getExpenseDetails(text);
-    rowData.Amount = amount;
-    rowData["Sent to"] = to;
-    rowData["Details"] = details ?? "";
-    rowData["AI completion"] = completion;
+    const expenseDetails = await getExpenseDetails(text);
+    const row = await addRowToSheet(expenseDetails, date);
+    await sendReply(region, { to: fromEmail, subject: subject ?? "" }, row);
   } catch (error) {
-    rowData.Amount = `Error parsing ${subject}`;
-    rowData["Sent to"] =
-      error instanceof Error ? error.message : "Unknown error";
+    console.error(error);
+    // TODO: Send reply with error details
+    throw error;
   }
+};
+
+async function addRowToSheet(
+  expenseDetails: Awaited<ReturnType<typeof getExpenseDetails>>,
+  emailDate: Date
+) {
+  // These keys need to match the column headings in the Google Sheet
+  const row = {
+    Amount: expenseDetails.amount,
+    "Sent to": expenseDetails.to,
+    "Email date": dayjs(emailDate)
+      .tz("America/Los_Angeles")
+      .format("YYYY-MM-DD Z"),
+    Details: expenseDetails.details ?? "",
+    "AI completion": expenseDetails.completion,
+  };
 
   const doc = new GoogleSpreadsheet(process.env.SHEET_ID);
   await doc.useServiceAccountAuth({
@@ -51,14 +60,16 @@ export const handler: S3Handler = async (event: S3Event) => {
   });
   await doc.loadInfo();
   const sheet = doc.sheetsByTitle["Expenses"];
-  await sheet.addRow(rowData);
-};
+  await sheet.addRow(row);
 
-async function getEmailFromS3(event: S3Event) {
+  return row;
+}
+
+async function getEmailFromS3(event: S3Event, region: string) {
   const { bucket, object } = event.Records[0].s3;
   console.log("Reading email saved at:", bucket.name, object.key);
 
-  const s3 = new S3({ region: event.Records[0].awsRegion });
+  const s3 = new S3({ region });
   const { Body } = await s3.getObject({
     Bucket: bucket.name,
     Key: object.key,
@@ -116,4 +127,41 @@ ${body}`;
   if (!to) throw new Error(`No 'To' found in completion: ${completion}`);
 
   return { amount, completion, details, to };
+}
+
+async function sendReply(
+  region: string,
+  { to, subject }: { to: string; subject: string },
+  rowData: { [key: string]: string }
+) {
+  let rowAsString = "";
+  for (const [key, value] of Object.entries(rowData)) {
+    rowAsString += `${key}: ${value}\n`;
+  }
+
+  const ses = new SESClient({ region });
+  const params = {
+    Destination: {
+      ToAddresses: [to],
+    },
+    Source: process.env.RECEIVING_EMAIL,
+    Message: {
+      Body: {
+        Text: {
+          Data: `Recorded the following:\n${rowAsString}`,
+        },
+      },
+      Subject: {
+        Data: subject,
+      },
+    },
+  };
+
+  try {
+    const data = await ses.send(new SendEmailCommand(params));
+    console.log("Email reply sent successfully. Message ID:", data.MessageId);
+  } catch (error) {
+    // Sending a reply is not critical, so just log the error
+    console.error(error);
+  }
 }
