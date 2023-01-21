@@ -102,7 +102,7 @@ async function getExpenseDetails(body: string) {
 
   const prompt = `The following is a forwarded expense email.
 How much is the expense for in dollars, and what company charged the expense?
-Include the expense date in the details field.
+In the details field, include the date the expense is charged. Format the date as ISO 8601.
 If the expense is for a domain name, also include the domain name in the details field.
 If there are no details, use "N/A" in the details field.
 Respond in the format: "Amount: <amount>, To: <sent to>, Details: <details>"
