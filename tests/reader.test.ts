@@ -21,7 +21,7 @@ jest.mock("@aws-sdk/client-s3");
 jest.spyOn(S3.prototype, "getObject").mockImplementation(() => {
   return Promise.resolve({
     Body: readFileSync(
-      path.join(__dirname, "fixtures", "mock-email.txt"),
+      path.join(__dirname, "fixtures", "mock-email.eml"),
       "utf8"
     ),
   });
