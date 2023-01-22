@@ -100,9 +100,11 @@ async function getExpenseDetails(body: string) {
     })
   );
 
-  const prompt = `The following is a forwarded expense email.
+  const prompt = `The following text between ### is a forwarded expense email.
 How much is the expense for in dollars, and what company charged the expense?
-In the details field, include the date the expense is charged. Format the date as ISO 8601.
+In the details field, include the date the expense is charged.
+If there are multiple dates, choose the date most likely to represent when the credit card was charged.
+Format the date as ISO 8601.
 If the expense is for a domain name, also include the domain name in the details field.
 If there are no details, use "N/A" in the details field.
 Respond in the format: "Amount: <amount>, To: <sent to>, Details: <details>"
@@ -110,9 +112,10 @@ Below are examples of desired responses:
 Example 1: "Amount: 1.20, To: Acme Corp, Details: 2021-12-25"
 Example 2: "Amount: 34.98, To: Netlify, Details: 2023-01-31 foo.com"
 Example 3: "Amount: 34.98, To: Netlify, Details: N/A"
-Example 4: "Can't find the amount.
-###"
-${body}`;
+Example 4: "Can't find the amount."
+###
+${body}
+###`;
 
   const response = await openai.createCompletion({
     prompt,
