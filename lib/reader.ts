@@ -3,7 +3,7 @@
  *       and adds its details to a Google Sheet
  */
 import type { S3Event, S3Handler } from "aws-lambda";
-import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { S3 } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
@@ -11,9 +11,20 @@ import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { simpleParser } from "mailparser";
 import { GoogleSpreadsheet } from "google-spreadsheet";
+import {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from "openai/resources";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+interface ParseExpenseResponseArgs {
+  to: string;
+  amount: string;
+  billing_date?: string;
+  domain_name?: string;
+}
 
 export const handler: S3Handler = async (event: S3Event) => {
   const region = event.Records[0].awsRegion;
@@ -45,7 +56,7 @@ export const handler: S3Handler = async (event: S3Event) => {
 };
 
 async function addRowToSheet(
-  expenseDetails: Awaited<ReturnType<typeof getExpenseDetails>>,
+  expenseDetails: ParseExpenseResponseArgs,
   emailDate: Date
 ) {
   // These keys need to match the column headings in the Google Sheet
@@ -55,8 +66,12 @@ async function addRowToSheet(
     "Email date": dayjs(emailDate)
       .tz("America/Los_Angeles")
       .format("YYYY-MM-DD Z"),
-    Details: expenseDetails.details ?? "",
-    "AI completion": expenseDetails.completion,
+    Details: `${[
+      expenseDetails.billing_date ?? "",
+      expenseDetails.domain_name ?? "",
+    ]
+      .filter((d) => !!d)
+      .join(", ")}`,
   };
 
   const doc = new GoogleSpreadsheet(process.env.SHEET_ID);
@@ -94,50 +109,84 @@ async function getEmailFromS3(event: S3Event, region: string) {
 }
 
 async function getExpenseDetails(body: string) {
-  const openai = new OpenAIApi(
-    new Configuration({
-      apiKey: process.env.OPEN_AI_KEY,
-    })
-  );
-
-  const prompt = `The following text between ### is a forwarded expense email.
-How much is the expense for in dollars, and what company charged the expense?
-In the details field, include the date the expense is charged.
-If there are multiple dates, choose the date most likely to represent when the credit card was charged.
-Format the date as ISO 8601.
-If the expense is for a domain name, also include the domain name in the details field.
-If there are no details, use "N/A" in the details field.
-Respond in the format: "Amount: <amount>, To: <sent to>, Details: <details>"
-Below are examples of desired responses:
-Example 1: "Amount: 1.20, To: Acme Corp, Details: 2021-12-25"
-Example 2: "Amount: 34.98, To: Netlify, Details: 2023-01-31 foo.com"
-Example 3: "Amount: 34.98, To: Netlify, Details: N/A"
-Example 4: "Can't find the amount."
-###
-${body}
-###`;
-
-  const response = await openai.createCompletion({
-    prompt,
-    model: "text-davinci-003",
-    temperature: 0.1,
-    max_tokens: 256,
+  const openai = new OpenAI({
+    apiKey: process.env.OPEN_AI_KEY,
   });
 
-  const completion = response.data.choices[0].text?.trim();
-  if (!completion) throw new Error("No completion from OpenAI");
+  const messages: ChatCompletionMessageParam[] = [
+    {
+      role: "system",
+      content:
+        "You are an expense tracking assistant. Parse expense details from the email content the user provides. Do not make up numbers or names.",
+    },
+    {
+      role: "user",
+      content: "Here is an expense email, parse and record the details",
+    },
+    {
+      role: "user",
+      content: body,
+    },
+  ];
 
-  console.log("Completion:", completion);
+  const tools: ChatCompletionTool[] = [
+    {
+      type: "function",
+      function: {
+        name: "parse_expense",
+        description: "Record the parsed expense details",
+        parameters: {
+          type: "object",
+          properties: {
+            to: {
+              type: "string",
+              description:
+                "The recipient of the expense. This is usually a company name.",
+            },
+            amount: {
+              type: "string",
+              description: "The dollar amount of the expense.",
+            },
+            billing_date: {
+              type: "string",
+              description:
+                "The date the expense was billed, in ISO format (YYYY-MM-DD). If no date is present, leave this blank",
+            },
+            domain_name: {
+              type: "string",
+              description:
+                "If this expense is for a domain name, record the domain name here.",
+            },
+          },
+        },
+      },
+    },
+  ];
 
-  const amount = completion.match(/Amount: (.+?), To/)?.[1].replace("$", "");
-  const to = completion.match(/To: (.+?),/)?.[1];
-  const details = completion.match(/Details: (.+)/)?.[1].replace("N/A", "");
+  const response = await openai.chat.completions.create({
+    messages,
+    model: "gpt-3.5-turbo",
+    temperature: 0.1,
+    tools,
+    tool_choice: {
+      type: "function",
+      function: {
+        name: "parse_expense",
+      },
+    },
+  });
 
-  if (!amount)
-    throw new Error(`No 'Amount' found in completion: ${completion}`);
-  if (!to) throw new Error(`No 'To' found in completion: ${completion}`);
+  if (!response.choices.length) throw new Error("No choices in chat response");
+  if (!response.choices[0].message.tool_calls?.length)
+    throw new Error("No tool calls in chat response");
 
-  return { amount, completion, details, to };
+  const responseArgs = JSON.parse(
+    response.choices[0].message.tool_calls[0].function.arguments
+  ) as ParseExpenseResponseArgs;
+
+  console.log("functionCallArgs:", responseArgs);
+
+  return responseArgs;
 }
 
 async function sendReply(
