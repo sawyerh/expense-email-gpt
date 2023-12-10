@@ -8,8 +8,8 @@ import nock from "nock";
 
 // Remove the below and any calls to jest.mock / jest.spyOn to run the
 // test against the real services
-import { getEnv } from "../lib/utils/getEnv";
-getEnv();
+// import { getEnv } from "../lib/utils/getEnv";
+// getEnv();
 
 jest.mock("@aws-sdk/client-s3");
 jest.spyOn(S3.prototype, "getObject").mockImplementation(() => {
@@ -54,9 +54,10 @@ function mockSesSendEmail() {
 
 describe("reader", () => {
   beforeEach(() => {
-    process.env.SENDING_EMAIL = "sender@example.com";
     process.env.AWS_ACCESS_KEY_ID = "test";
     process.env.AWS_SECRET_ACCESS_KEY = "test";
+    process.env.OPENAI_API_KEY = "test";
+    process.env.SENDING_EMAIL = "sender@example.com";
     jest.clearAllMocks();
   });
 
