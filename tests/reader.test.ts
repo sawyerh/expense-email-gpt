@@ -6,10 +6,21 @@ import * as MOCK_EVENT from "./fixtures/mock-s3-put-object-event.json";
 import path = require("path");
 import nock from "nock";
 
-// Remove the below and any calls to jest.mock / jest.spyOn to run the
-// test against the real services
+/**
+ * To run the test against the real services:
+ * 1. Uncomment getEnv()
+ * 2. Comment out the process.env.* assignments in mockEnvVars(), except SENDING_EMAIL
+ * 3. Comment out nock() calls or use nock.recorder.rec() to record the real calls
+ */
 // import { getEnv } from "../lib/utils/getEnv";
 // getEnv();
+
+function mockEnvVars() {
+  process.env.AWS_ACCESS_KEY_ID = "test";
+  process.env.AWS_SECRET_ACCESS_KEY = "test";
+  process.env.OPENAI_API_KEY = "test";
+  process.env.SENDING_EMAIL = "sender@example.com";
+}
 
 jest.mock("@aws-sdk/client-s3");
 jest.spyOn(S3.prototype, "getObject").mockImplementation(() => {
@@ -54,10 +65,7 @@ function mockSesSendEmail() {
 
 describe("reader", () => {
   beforeEach(() => {
-    process.env.AWS_ACCESS_KEY_ID = "test";
-    process.env.AWS_SECRET_ACCESS_KEY = "test";
-    process.env.OPENAI_API_KEY = "test";
-    process.env.SENDING_EMAIL = "sender@example.com";
+    mockEnvVars();
     jest.clearAllMocks();
   });
 
@@ -72,7 +80,7 @@ describe("reader", () => {
         200,
         [
           "1f8b08000000",
-          "000000036c524d6bdb4010bdeb572c438f96d1876d19dd4a4b21045268137ca882584b2379d3fdcaeeca8d63fcdfcb4a8ea484ec6119e6cd7bf37676ce0121c06ac8095407ea2aa179b87d884ec7f6fed7ddddd3f36e97c99dd25b6dbfff78ae6ffe25b0f00cb57fc2cabdb19695129aa3634a0e7065903af4aa711625f1669546eb1e10aa46ee69ad7661ba5c87ae337b15469b38bd320f8a556821277f02420839f7b7f7286b7c819c448bb78c406b698b908f45848051dc67805acbaca3d2c162022b251d4a6f5b769ccf00a7142f2bcaf9d47838e7593c0d8a725e6eef9be36db6f9768b9cfec40771b0f4b5899a9b59bf41faa47b434d27ab7140337ccce71f9a1102928a9eaba9b158e28b4669f1830021404ddb0994ce9b8773210929c0a9027252c057415f95243bdc93df688e7eb6052c861a2a5427dd50f7255eae5723b2679c33d996357538e04994a4611487515240212ff0cec325f82c7ebc4697f1c71a26993d9406a9ed1f0cd6293d4879da63bf01ddbb4f056d94d0ae74ea2f4affc0cd6a35e8c1b474139aa657d02947f98c9565c1d509d8937528ca86c9168d366c5c88e012fc070000ffff0300821969d40f030000",
+          "000000036c52db8adb30107df75788611fe3e04b73c16fcb922da5382d644b03f5621479e2a89125238dcb6e43febdd8cedadea57a10c39c39678e4673f118035940c2409c3889aa56fefa47485ff7dfcaeddfcdea93d897364a1f9eca74b36ad6f75b98b50c73f88d82de587361aa5a2149a37b5858e484ad6ab80aa270b95a07510754a640d5d2ca9afc78bef0a9b107e307cb30be314f460a7490b05f1e638c5dbabbf5a80b7c818405b3b74c85cef11221198a18036b549b01ee9c74c435c16c0485d184bab5ad1ba5260019a372c1951a1bf7e73289c74171a5f2223e7f6e76a1d35f766e9f9ee97bba15121f9f26fd7ae9d7ba33746cb4180634c1877cf2a11963a079d5716b6e1de6f852a376f8418031e0b66c2ad4d49a874ba619cb804c0609cbe0fe21ddb09f78603bb47fdac96630eb2b78651a4d7dd55d18c7ab79100ce0412a257599179cb02f898228f683d00fa20c327d857726aedeffe2e75b741dbeec28b574a7dc2277dd8bc191a97ba996f6dcad40f3ee57a1b6a6aa29277346ddbe70b9087b3d18b76e44e3c50d24435c4d58eba5777302eed51156f951ea126d6de5b011ded5fb070000ffff0300beb6438f10030000",
         ],
         ["Content-Type", "application/json", "Content-Encoding", "gzip"]
       );
@@ -82,10 +90,10 @@ describe("reader", () => {
     await handler(event, MOCK_CONTEXT, MOCK_CALLBACK);
 
     expect(mockAddRow).toHaveBeenCalledWith({
-      Amount: "$1.54",
+      Amount: "$1337.00",
       Details: "2023-01-02",
       "Email date": "2023-01-10 -08:00",
-      "Sent to": "Amazon Web Services",
+      "Sent to": "ACME Web Services",
     });
 
     expect(sesNock.isDone()).toBeTruthy();
